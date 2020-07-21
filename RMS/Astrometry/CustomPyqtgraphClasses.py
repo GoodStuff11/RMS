@@ -534,13 +534,13 @@ class RightOptionsTab(QtWidgets.QTabWidget):
         self.addTab(self.param_manager, 'Fit Parameters')
         self.addTab(self.settings, 'Settings')
 
-
         self.setTabText(0, 'Levels')
         self.setTabText(1, 'Fit Parameters')
         self.setTabText(2, 'Settings')
 
         self.setCurrentIndex(self.index)  # redundant
         self.setTabPosition(QtWidgets.QTabWidget.East)
+        self.setMovable(True)
 
         self.tabBarClicked.connect(self.onTabBarClicked)
 
@@ -555,14 +555,6 @@ class RightOptionsTab(QtWidgets.QTabWidget):
                 self.setFixedWidth(250)
             else:
                 self.setFixedWidth(19)
-
-    def onSkyFit(self):
-        self.insertTab(1, self.param_manager, 'Fit Parameters')
-        self.settings.onSkyFit()
-
-    def onManualReduction(self):
-        self.removeTab(1)
-        self.settings.onManualReduction()
 
 
 class PlateparParameterManager(QtWidgets.QWidget):
@@ -584,7 +576,6 @@ class PlateparParameterManager(QtWidgets.QWidget):
 
     sigRefractionToggled = QtCore.pyqtSignal()
     sigEqAspectToggled = QtCore.pyqtSignal()
-    sigForceDistortionToggled = QtCore.pyqtSignal()
 
     def __init__(self, gui, parent=None):
         QtWidgets.QWidget.__init__(self, parent)
@@ -593,7 +584,6 @@ class PlateparParameterManager(QtWidgets.QWidget):
         full_layout = QtWidgets.QVBoxLayout()
         self.setLayout(full_layout)
 
-        # buttons
         box = QtWidgets.QVBoxLayout()
 
         self.fit_astrometry_button = QtWidgets.QPushButton("Fit")
@@ -615,23 +605,17 @@ class PlateparParameterManager(QtWidgets.QWidget):
         group.setLayout(box)
         full_layout.addWidget(group)
 
-        # check boxes
-        self.refraction = QtWidgets.QCheckBox('Refraction')
-        self.refraction.released.connect(self.onRefractionToggled)
-        full_layout.addWidget(self.refraction)
-
-        self.eqAspect = QtWidgets.QCheckBox('Equal Aspect')
-        self.eqAspect.released.connect(self.onEqualAspectToggled)
-        full_layout.addWidget(self.eqAspect)
-
-        self.fdistortion = QtWidgets.QCheckBox('Force Distortion Centre')
-        self.fdistortion.released.connect(self.onForceDistortionToggled)
-        full_layout.addWidget(self.fdistortion)
-
-        # spin boxes
         form = QtWidgets.QFormLayout()
         form.setLabelAlignment(QtCore.Qt.AlignRight)
         full_layout.addLayout(form)
+
+        self.refraction = QtWidgets.QCheckBox('Refraction')
+        self.refraction.released.connect(self.onRefractionToggled)
+        form.addWidget(self.refraction)
+
+        self.eqAspect = QtWidgets.QCheckBox('Equal Aspect')
+        self.eqAspect.released.connect(self.onEqualAspectToggled)
+        form.addWidget(self.eqAspect)
 
         hbox = QtWidgets.QHBoxLayout()
         self.az_centre = DoubleSpinBox()
@@ -748,10 +732,6 @@ class PlateparParameterManager(QtWidgets.QWidget):
         self.gui.platepar.equal_aspect = self.eqAspect.isChecked()
         self.sigEqAspectToggled.emit()
 
-    def onForceDistortionToggled(self):
-        self.gui.platepar.force_distortion_centre = self.fdistortion.isChecked()
-        self.sigForceDistortionToggled.emit()
-
     def onLatChanged(self):
         self.gui.platepar.lat = self.lat.value()
         # self.gui.view_widget.setFocus()
@@ -831,7 +811,6 @@ class PlateparParameterManager(QtWidgets.QWidget):
         self.extinction_scale.setValue(self.gui.platepar.extinction_scale)
         self.refraction.setChecked(self.gui.platepar.refraction)
         self.eqAspect.setChecked(self.gui.platepar.equal_aspect)
-        self.fdistortion.setChecked(self.gui.platepar.force_distortion_centre)
 
     def updatePairedStars(self):
         """
@@ -934,7 +913,6 @@ class SettingsWidget(QtWidgets.QTabWidget):
     sigDistortionToggled = QtCore.pyqtSignal()
     sigInvertToggled = QtCore.pyqtSignal()
     sigGridToggled = QtCore.pyqtSignal()
-    sigSelStarsToggled = QtCore.pyqtSignal()
 
     def __init__(self, gui, parent=None):
         QtWidgets.QTabWidget.__init__(self, parent)
@@ -966,11 +944,6 @@ class SettingsWidget(QtWidgets.QTabWidget):
         self.detected_stars.released.connect(self.sigCalStarsToggled.emit)
         self.updateShowCalStars()
         vbox.addWidget(self.detected_stars)
-
-        self.selected_stars = QtWidgets.QCheckBox('Show Selected Stars')
-        self.selected_stars.released.connect(self.sigSelStarsToggled.emit)
-        self.updateShowSelStars()
-        vbox.addWidget(self.selected_stars)
 
         self.distortion = QtWidgets.QCheckBox('Show Distortion')
         self.distortion.released.connect(self.sigDistortionToggled.emit)
@@ -1016,16 +989,14 @@ class SettingsWidget(QtWidgets.QTabWidget):
         self.lim_mag.setDecimals(1)
         self.updateLimMag()
         self.lim_mag.valueModified.connect(self.onLimMagChanged)
-        self.lim_mag_label = QtWidgets.QLabel('Lim Mag')
-        form.addRow(self.lim_mag_label, self.lim_mag)
+        form.addRow(QtWidgets.QLabel('Lim Mag'), self.lim_mag)
 
         self.std = DoubleSpinBox()
         self.std.setSingleStep(0.1)
         self.std.setMinimum(0)
         self.std.setValue(self.gui.stdev_text_filter)
         self.std.valueModified.connect(self.onStdChanged)
-        self.std_label = QtWidgets.QLabel('Filter Res Std')
-        form.addRow(self.std_label, self.std)
+        form.addRow(QtWidgets.QLabel('Filter Res Std'), self.std)
 
     def updateMaxAvePixel(self):
         self.ave_pixel.setChecked(self.gui.img_type_flag == 'avepixel')
@@ -1036,9 +1007,6 @@ class SettingsWidget(QtWidgets.QTabWidget):
 
     def updateShowCalStars(self):
         self.detected_stars.setChecked(self.gui.draw_calstars)
-
-    def updateShowSelStars(self):
-        self.selected_stars.setChecked(self.gui.selected_stars_visible)
 
     def updateShowDistortion(self):
         self.distortion.setChecked(self.gui.draw_distortion)
@@ -1080,49 +1048,6 @@ class SettingsWidget(QtWidgets.QTabWidget):
     def onStdChanged(self):
         self.gui.stdev_text_filter = self.std.value()
         self.gui.photometry()
-
-    def onSkyFit(self):
-        self.lim_mag.show()
-        self.lim_mag_label.show()
-        self.std.show()
-        self.std_label.show()
-        self.catalog_stars.show()
-        self.detected_stars.show()
-        self.distortion.show()
-
-        self.sigCatStarsToggled.emit()  # toggle makes it true
-        self.updateShowCatStars()
-
-        self.sigSelStarsToggled.emit()  # toggle makes it true
-        self.updateShowSelStars()
-
-        self.sigCalStarsToggled.emit()  # toggle makes it true
-        self.updateShowCalStars()
-
-    def onManualReduction(self):
-        self.lim_mag.hide()
-        self.lim_mag_label.hide()
-        self.std.hide()
-        self.std_label.hide()
-        self.catalog_stars.hide()
-        self.detected_stars.hide()
-        self.distortion.hide()
-
-        self.gui.catalog_stars_visible = True
-        self.sigCatStarsToggled.emit()  # toggle makes it false
-        self.updateShowCatStars()
-
-        self.gui.draw_distortion = True
-        self.sigDistortionToggled.emit()  # toggle makes it false
-        self.updateShowDistortion()
-
-        self.gui.selected_stars_visible = True
-        self.sigSelStarsToggled.emit()  # toggle makes it false
-        self.updateShowSelStars()
-
-        self.gui.draw_calstars = True
-        self.sigCalStarsToggled.emit()  # toggle makes it false
-        self.updateShowCalStars()
 
 
 # https://jdreaver.com/posts/2014-07-28-scientific-notation-spin-box-pyside.html
